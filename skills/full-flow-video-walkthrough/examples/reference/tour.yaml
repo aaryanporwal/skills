@@ -1,0 +1,119 @@
+# Reference tour: the shape of the first walkthrough this skill made (an owner uploads an ID in an iPhone app;
+# staff review it on the web and accept one document and send another back). Copy it and change names, targets
+# and subtitles. It is not runnable as is: it needs your app and your web server.
+title: Document check
+brand: Example
+out: document-check.mp4
+
+phone:
+  appId: com.example.owner
+  label: Example app · business owner
+
+web:
+  url: http://localhost:3000
+  cookies: ~/.cache/example/staff-session.json # {"SESSION": "..."}; mode 600; delete after
+  label: Example HQ · staff
+
+intro:
+  title: Document check
+  lines:
+    - "**Business owners** upload their ID and bank statement in the app."
+    - "**Staff** check each document, then accept it or ask again."
+
+scenes:
+  - id: app-welcome
+    on: phone
+    subtitle: Mia just signed up. The app welcomes her.
+    setup:
+      - shell: ./scripts/reset-fixture.sh # local fictional data only
+      - launch: { fresh: true, args: ["-useLocalServer", "http://127.0.0.1:3999"] }
+    steps:
+      - wait: Welcome
+      - tap: Continue
+
+  - id: app-checklist
+    on: phone
+    subtitle: She sees the two documents needed to check her business.
+    steps:
+      - wait: What we need from you
+      - tap: { text: Upload, index: 0 }
+
+  - id: app-send
+    on: phone
+    subtitle: She picks her passport photo and sends it.
+    steps:
+      - tap: Send
+      - wait: Sent
+      - hold: 1
+
+  - id: app-uploaded
+    on: phone
+    subtitle: Her checklist now shows it uploaded and waiting for a check.
+    steps:
+      - tap: Done
+      - wait: Uploaded
+
+  - id: hq-home
+    on: web
+    subtitle: Home shows documents waiting under Needs you.
+    setup:
+      - shell: ./scripts/upload-statement.sh # off camera: the second document, through the same upload route
+      - goto: /
+    steps:
+      - hover: { text: Owner documents, in: main }
+      - click: { role: link, name: Review }
+      - wait: { url: /owner-documents }
+
+  - id: hq-list
+    on: web
+    subtitle: Owner documents lists each business with files to check.
+    steps:
+      - click: { role: link, name: Little Lantern Pty Ltd }
+      - wait: { selector: li.doc }
+
+  - id: hq-business
+    on: web
+    subtitle: Staff open the business and view each file before deciding.
+    steps:
+      - click: { role: link, name: Open, in: li.doc, inText: Passport }
+        popup: true # the next scene runs in the new tab
+
+  - id: hq-file
+    on: web
+    subtitle: Each file opens in a private link that expires in two minutes.
+    steps:
+      - hold: 2.5
+
+  - id: hq-accept
+    on: web
+    subtitle: The passport is clear, so staff accept it.
+    setup:
+      - close: true # back to the first tab
+    steps:
+      - click: { role: button, name: Accept, in: li.doc, inText: Passport }
+      - wait: Accepted by
+
+  - id: hq-reject
+    on: web
+    subtitle: Staff ask for a new copy and say what to fix.
+    steps:
+      - click: { text: Please upload again, in: li.doc, inText: Bank statement }
+      - fill: { selector: "textarea[name=reason]", value: "The top is cut off. Send the whole first page." }
+      - click: { role: button, name: Send back to the owner }
+      - wait: Sent back by
+
+  - id: app-result
+    on: phone
+    subtitle: Mia sees the passport accepted and the reason to upload again.
+    setup:
+      - launch: { args: ["-useLocalServer", "http://127.0.0.1:3999", "-openChecklist"] }
+    steps:
+      - wait: Please upload again
+      - hold: 2
+      - tap: Upload again
+
+outro:
+  title: What happens next
+  lines:
+    - Mia's new copy goes back to staff to check.
+    - When both documents are accepted, she books her install.

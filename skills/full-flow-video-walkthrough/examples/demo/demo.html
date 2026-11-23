@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Requests</title>
+<style>
+  body { margin: 0; font: 16px/1.45 -apple-system, "Helvetica Neue", sans-serif; color: #1b1f1d; background: #f6f7f5; }
+  header { height: 56px; display: flex; align-items: center; padding: 0 28px; background: #fff; border-bottom: 1px solid #e3e6e1; font-weight: 700; }
+  main { max-width: 880px; margin: 40px auto; }
+  h1 { font-size: 28px; margin: 0 0 6px; }
+  .sub { color: #5d665f; margin: 0 0 24px; }
+  .card { background: #fff; border: 1px solid #e3e6e1; border-radius: 14px; }
+  .row { display: flex; align-items: center; gap: 16px; padding: 16px 20px; border-top: 1px solid #eef0ec; }
+  .row:first-child { border-top: 0; }
+  .grow { flex: 1; }
+  .pill { font-size: 13px; font-weight: 600; padding: 3px 10px; border-radius: 99px; background: #fff3d6; color: #8a5a00; }
+  .pill.ok { background: #e2f4e7; color: #1d6b3c; }
+  button { font: inherit; font-weight: 600; padding: 8px 16px; border-radius: 10px; border: 1px solid #1d6b3c; background: #1d6b3c; color: #fff; cursor: pointer; }
+  button.ghost { background: #fff; color: #1d6b3c; }
+  textarea { width: 100%; box-sizing: border-box; font: inherit; padding: 10px; border-radius: 10px; border: 1px solid #cfd5cd; min-height: 70px; }
+  #detail { display: none; padding: 20px; }
+  .toast { position: fixed; right: 24px; bottom: 24px; background: #12301f; color: #fff; padding: 12px 18px; border-radius: 12px; display: none; }
+</style>
+</head>
+<body>
+<header>Sample Desk</header>
+<main>
+  <h1>Requests</h1>
+  <p class="sub">Two requests wait for a reply.</p>
+  <div class="card" id="list">
+    <div class="row"><div class="grow"><b>Sample Cafe</b><br><span class="sub">New menu photo</span></div><span class="pill" id="state">To check</span><button class="ghost" id="open">Open</button></div>
+    <div class="row"><div class="grow"><b>Test Bakery</b><br><span class="sub">Opening hours</span></div><span class="pill">To check</span><button class="ghost">Open</button></div>
+  </div>
+  <div class="card" id="detail">
+    <h2 style="margin-top:0">Sample Cafe: new menu photo</h2>
+    <p><a href="menu-photo.png" target="_blank" id="photo">View photo</a></p>
+    <label for="note">Reply to the owner</label>
+    <textarea id="note" placeholder="Say what you changed."></textarea>
+    <p><button id="send">Send reply</button></p>
+  </div>
+</main>
+<div class="toast" id="toast">Reply sent. The owner sees it now.</div>
+<script>
+  document.getElementById("open").onclick = () => { document.getElementById("detail").style.display = "block"; };
+  document.getElementById("send").onclick = () => {
+    document.getElementById("detail").style.display = "none";
+    const state = document.getElementById("state");
+    state.textContent = "Replied"; state.className = "pill ok";
+    const toast = document.getElementById("toast"); toast.style.display = "block";
+  };
+</script>
+</body>
+</html>

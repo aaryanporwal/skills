@@ -1,0 +1,74 @@
+# Self-test: needs only a booted iPhone 17 Pro simulator (Settings app) and this folder's demo.html.
+#   bun ~/.claude/skills/full-flow-video-walkthrough/walkthrough.ts all ~/.claude/skills/full-flow-video-walkthrough/examples/demo/tour.yaml
+title: Walkthrough self-test
+brand: Sample
+out: ~/.cache/full-flow-video/demo/demo.mp4
+
+phone:
+  appId: com.apple.Preferences
+  label: Settings · iPhone
+
+web:
+  url: demo.html # a path with no scheme is a file next to this tour
+  label: Sample Desk · staff
+
+intro:
+  title: Walkthrough self-test
+  lines:
+    - "**Phone scenes** come from the simulator, driven by Maestro."
+    - "**Web scenes** come from Chrome, driven by Playwright."
+
+scenes:
+  - id: phone-general
+    on: phone
+    subtitle: The owner opens General in Settings.
+    setup:
+      - launch: {}
+      - open: "App-prefs:" # Settings remembers its last page; this link opens its first page
+    steps:
+      - wait: Apple Account
+      - tap: General
+
+  - id: phone-about
+    on: phone
+    subtitle: Then About, to see the phone's details.
+    steps:
+      - tap: About
+      - wait: Name
+
+  - id: web-open
+    on: web
+    subtitle: Staff open the request that waits.
+    setup:
+      - goto: ""
+    steps:
+      - hover: Sample Cafe
+      - click: { selector: "#open" }
+
+  - id: web-photo-link
+    on: web
+    subtitle: They open the photo the owner sent.
+    steps:
+      - click: View photo
+        popup: true
+
+  - id: web-photo
+    on: web
+    subtitle: It opens in its own tab, full size.
+    steps:
+      - hold: 2
+
+  - id: web-reply
+    on: web
+    subtitle: They write a reply and send it.
+    setup:
+      - close: true
+    steps:
+      - fill: { label: Reply to the owner, value: "Thanks, the new menu photo is up." }
+      - click: Send reply
+      - wait: Reply sent. The owner sees it now.
+
+outro:
+  title: Self-test done
+  lines:
+    - If this video looks right, the toolkit works on this machine.
