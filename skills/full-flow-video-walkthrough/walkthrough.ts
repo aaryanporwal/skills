@@ -4,6 +4,7 @@
  *
  *   bun ~/.claude/skills/full-flow-video-walkthrough/walkthrough.ts check  <tour.yaml>
  *   bun ~/.claude/skills/full-flow-video-walkthrough/walkthrough.ts record <tour.yaml>
+ *   bun ~/.claude/skills/full-flow-video-walkthrough/walkthrough.ts voice  <tour.yaml>   (make and check the voice lines only)
  *   bun ~/.claude/skills/full-flow-video-walkthrough/walkthrough.ts cut    <tour.yaml> [--take <dir>]
  *   bun ~/.claude/skills/full-flow-video-walkthrough/walkthrough.ts review <tour.yaml> [--take <dir>]
  *   bun ~/.claude/skills/full-flow-video-walkthrough/walkthrough.ts all    <tour.yaml>   (check, record, cut, review)
@@ -18,11 +19,12 @@ import { bootedDevice, javaHome } from "./lib/phone";
 import { record } from "./lib/record";
 import { review } from "./lib/review";
 import { loadTour, type Tour } from "./lib/spec";
+import { voices } from "./lib/voice";
 
 const [command, file] = process.argv.slice(2);
 const takeFlag = process.argv.indexOf("--take");
-if (!command || !file || !["check", "record", "cut", "review", "all"].includes(command)) {
-  console.error("usage: walkthrough.ts check|record|cut|review|all <tour.yaml> [--take <dir>]");
+if (!command || !file || !["check", "record", "voice", "cut", "review", "all"].includes(command)) {
+  console.error("usage: walkthrough.ts check|record|voice|cut|review|all <tour.yaml> [--take <dir>]");
   process.exit(2);
 }
 
@@ -31,6 +33,8 @@ const has = (tool: string, args = ["-version"]) => spawnSync(tool, args, { encod
 async function check(tour: Tour, problems: { level: string; where: string; text: string }[]) {
   const all = [...problems];
   if (!has("ffmpeg") || !has("ffprobe")) all.push({ level: "error", where: "tools", text: "ffmpeg and ffprobe are needed (brew install ffmpeg)" });
+  if (tour.voice && !has("uv", ["--version"])) all.push({ level: "error", where: "tools", text: "voice needs uv (brew install uv)" });
+  if (tour.voice && process.arch !== "arm64") all.push({ level: "error", where: "tools", text: "voice checks words with mlx-whisper, which needs Apple silicon" });
   if (tour.scenes.some((scene) => scene.on === "phone")) {
     if (!has("maestro", ["--version"]) && !existsSync("/opt/homebrew/bin/maestro")) all.push({ level: "error", where: "tools", text: "Maestro is needed for phone scenes (brew install maestro)" });
     if (!javaHome() && !has("java")) all.push({ level: "error", where: "tools", text: "Maestro needs Java: brew install openjdk@21" });
@@ -72,6 +76,7 @@ if (command === "record") {
   if (!(await check(tour, problems))) process.exit(1);
   await record(tour);
 }
+if (command === "voice") voices(tour);
 if (command === "cut") await cut(tour, takeDir());
 if (command === "review") review(tour, takeDir());
 if (command === "all") {

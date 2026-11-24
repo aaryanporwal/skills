@@ -16,6 +16,9 @@ fixed in `lib/style.ts`, so every video matches and nothing is designed from scr
 - Web scenes: the page at 1440x900, a drawn cursor that moves to each control, a ring on each click, and the
   subtitle in a dark bar at the foot, under the same kind of label.
 - One subtitle per scene: plain words, 12 at most, what is done and why. No en or em dashes, no internal terms.
+- Optional voice-over (`voice:` at the top): a warm voice reads each scene's line, made on this Mac with
+  Kokoro-82M (no service, no cost) and checked word by word with Whisper. Each line starts just after its scene
+  fades in, and a scene stays up until its line ends. The sound is levelled to -16 LUFS.
 - Still stretches are cut short and slow servers never show (see `lib/timeline.ts`); each scene stays up long enough
   to read its subtitle; scenes cross-fade in 0.4 s. Aim for 60 to 100 s, never over 2 minutes.
 
@@ -32,6 +35,9 @@ fixed in `lib/style.ts`, so every video matches and nothing is designed from scr
 5. `bun ~/.claude/skills/full-flow-video-walkthrough/walkthrough.ts all <tour.yaml>` records every scene in order,
    cuts the video and makes contact sheets. Changing only subtitles or cards needs `cut` then `review`, not a new
    recording. A changed step needs `record` again (state moves on in the app, so reset the fixture data first).
+   With `voice:`, `cut` makes any missing voice lines first (cached by text, so only changed lines are made
+   again) and prints each line's length and "words ok" or "CHECK (heard: ...)". `voice` makes and checks them
+   without cutting. A CHECK on a spelled-out acronym ("R back" heard as "are back") is fine; a missing word is not.
 6. Read every sheet `review` prints (three frames per scene: start, middle, end). Check the right screen, a
    readable subtitle that covers no control, no dev overlay, no error, no real personal data. Fix and re-run.
 7. Send the MP4 with SendUserFile. Report its path, length, each scene's subtitle, and what was real versus
@@ -39,7 +45,9 @@ fixed in `lib/style.ts`, so every video matches and nothing is designed from scr
 
 First run on a new machine: `cd ~/.claude/skills/full-flow-video-walkthrough && bun install`, then run the
 self-test `examples/demo/tour.yaml` (needs only a booted iPhone 17 Pro). Tools: ffmpeg, Maestro (phone), Java for
-Maestro (Homebrew `openjdk@21` is found by itself), Playwright's Chromium (installed with the package).
+Maestro (Homebrew `openjdk@21` is found by itself), Playwright's Chromium (installed with the package). Voice:
+`uv` and Apple silicon; the first voice run downloads Kokoro and Whisper (about 2 GB, cached in
+`~/.cache/huggingface`).
 
 ## Tour format
 
@@ -55,13 +63,18 @@ web:
   cookies: ~/.cache/x/session.json
   label: Example HQ · staff
   hide: ["#dev-banner"]        # extra CSS to hide; Next.js's dev badge is always hidden
-intro: { title: Merchant KYC, lines: ["**Owners** upload ...", "**Staff** check ..."] }
+voice:                         # optional spoken voice-over; `voice: true` takes these defaults
+  speaker: af_heart            # a Kokoro voice (af_heart is warm, American; bf_emma is British)
+  speed: 0.9
+  pronounce: { SI: "S I", Nomni: "Nom nee" }   # spoken spelling for words Kokoro says wrong
+intro: { title: Merchant KYC, say: "Merchant KYC, from upload to verified.", lines: ["**Owners** upload ...", "**Staff** check ..."] }
 outro: { title: What happens next, lines: ["..."] }
 scenes:
   - id: si-welcome             # unique
     on: phone                  # phone | web | card
     subtitle: Mia just signed up. The app welcomes her.
     label: Example app · owner # optional, overrides the default
+    say: Mia just signed up.   # optional voice line; default the subtitle (a card: title and lines); "" = silent
     setup:                     # off camera, before the scene
       - launch: { args: ["-someFlag", "value"], fresh: true }   # phone: terminate, forget the last screen, launch
       - open: "myapp://path"   # phone: open a deep link

@@ -36,6 +36,7 @@ export type Scene = {
   setup?: Step[]; // off camera
   steps?: Step[]; // on camera
   minimum?: number; // seconds; default from the subtitle's length
+  say?: string; // voice-over text; default the subtitle (a card: title and lines); "" for silence
 };
 
 export type Tour = {
@@ -53,6 +54,7 @@ export type Tour = {
     hide: string[];
     label: string;
   };
+  voice?: { speaker: string; speed: number; pronounce: Record<string, string> }; // spoken voice-over, made locally
   scenes: Scene[];
 };
 
@@ -112,6 +114,13 @@ export function loadTour(path: string): { tour: Tour; problems: Problem[] } {
           label: String(raw.web.label ?? "Web"),
         }
       : undefined,
+    voice: raw?.voice
+      ? {
+          speaker: String(raw.voice === true ? "af_heart" : (raw.voice.speaker ?? "af_heart")),
+          speed: Number(raw.voice === true ? 0.9 : (raw.voice.speed ?? 0.9)),
+          pronounce: (raw.voice === true ? {} : (raw.voice.pronounce ?? {})) as Record<string, string>,
+        }
+      : undefined,
     scenes: [],
   };
 
@@ -136,6 +145,7 @@ export function loadTour(path: string): { tour: Tour; problems: Problem[] } {
     if (!scene.subtitle) err(where, "subtitle is required");
     else if (words(scene.subtitle) > 12) warn(where, `subtitle has ${words(scene.subtitle)} words; keep it to 12`);
     if (/[–—]/.test(scene.subtitle ?? "")) err(where, "no en or em dashes in subtitles");
+    if (/[–—]/.test(scene.say ?? "")) err(where, "no en or em dashes in say");
     if (!(scene.steps ?? []).length) err(where, "steps are required: a scene shows something happen");
     if (scene.on === "phone" && !tour.phone?.appId) err(where, "a phone scene needs phone.appId at the top");
     if (scene.on === "web" && !tour.web?.url) err(where, "a web scene needs web.url at the top");

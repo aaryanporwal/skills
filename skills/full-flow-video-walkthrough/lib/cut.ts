@@ -9,6 +9,10 @@ import type { Take } from "./record";
 import { minimumSeconds, type Tour } from "./spec";
 import { barHtml, cardHtml, ENCODE, FADE, FPS, H, maskHtml, phoneHtml, png, ringHtml, SCREEN, W } from "./style";
 import { concatList, plan, snapTap, type Frame } from "./timeline";
+import { voices } from "./voice";
+
+const VOICE_LEAD = FADE + 0.25; // seconds from a scene's start to its first word: after the fade-in
+const VOICE_TAIL = 0.35; // a breath after the last word, before the next scene starts fading in
 
 const ffmpeg = (args: string[]) => execFileSync("ffmpeg", ["-hide_banner", "-loglevel", "error", "-y", ...args]);
 
@@ -27,14 +31,21 @@ export async function cut(tour: Tour, takeDir: string) {
     return frameCache.get(dir)!;
   };
 
+  const clips = voices(tour);
+  // A scene with a voice line stays up until the line ends and a short breath passes, before the next fade starts.
+  const voiced = (scene: { id: string }) => {
+    const clip = clips.get(scene.id);
+    return clip ? VOICE_LEAD + clip.seconds + VOICE_TAIL + FADE : 0;
+  };
+
   const files: string[] = [];
   const lengths: number[] = [];
   for (const [index, scene] of tour.scenes.entries()) {
     const out = join(work, `${String(index).padStart(2, "0")}-${scene.id}.mp4`);
-    const minimum = minimumSeconds(scene);
+    const minimum = Math.max(minimumSeconds(scene), voiced(scene));
     if (scene.on === "card") {
       const still = await png(browser, cardHtml(tour.brand, scene.title ?? "", scene.lines ?? []), join(work, `${scene.id}.png`));
-      const seconds = scene.seconds ?? 6;
+      const seconds = Math.max(scene.seconds ?? 6, voiced(scene));
       ffmpeg(["-loop", "1", "-t", String(seconds), "-i", still, "-vf", `fps=${FPS}`, ...ENCODE, out]);
       lengths.push(seconds);
     } else {
@@ -88,8 +99,25 @@ export async function cut(tour: Tour, takeDir: string) {
     previous = label;
   }
   mkdirSync(dirname(tour.out), { recursive: true });
+  const silent = clips.size ? join(work, "video.mp4") : tour.out;
   ffmpeg([...files.flatMap((file) => ["-i", file]), ...(files.length > 1 ? ["-filter_complex", chain.join(";"), "-map", "[out]"] : []),
-    ...ENCODE, "-movflags", "+faststart", tour.out]);
+    ...ENCODE, "-movflags", "+faststart", silent]);
+
+  if (clips.size) {
+    // Each line starts VOICE_LEAD after its scene starts (scene i starts where scene i-1's fade begins).
+    const placed: { file: string; at: number }[] = [];
+    let start = 0;
+    tour.scenes.forEach((scene, i) => {
+      const clip = clips.get(scene.id);
+      if (clip) placed.push({ file: clip.file, at: start + (i === 0 ? 0.5 : VOICE_LEAD) });
+      start += lengths[i] - FADE;
+    });
+    const total = lengths.reduce((sum, length) => sum + length, 0) - FADE * (files.length - 1);
+    const mix = placed.map((item, i) => `[${i + 1}:a]aresample=48000,adelay=${Math.round(item.at * 1000)}:all=1[a${i}]`);
+    mix.push(`${placed.map((_, i) => `[a${i}]`).join("")}amix=inputs=${placed.length}:normalize=0:duration=longest,apad,loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000[aout]`);
+    ffmpeg(["-i", silent, ...placed.flatMap((item) => ["-i", item.file]), "-filter_complex", mix.join(";"),
+      "-map", "0:v", "-map", "[aout]", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ac", "2", "-t", total.toFixed(3), "-movflags", "+faststart", tour.out]);
+  }
 
   const stampOf = (seconds: number) => {
     const ms = Math.max(0, Math.round(seconds * 1000));
